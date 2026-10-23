@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="ro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Admin – Secret Santa</title>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;600;700&family=Young+Serif&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <h1>Admin</h1>
+  <p>Scrie câte o persoană pe rând (nume și prenume). Apoi generează tragerea la sorți.</p>
+  <label for="list">Participanți</label>
+  <textarea id="list" placeholder="Gherciu Gabriel&#10;Munteanu Mihai&#10;..."></textarea>
+  <button id="go">Generează</button>
+  <div class="err" id="err" role="alert"></div>
+
+  <section id="out" hidden>
+    <h2>1. Lista cu ID-uri (o poți publica)</h2>
+    <pre id="pub"></pre>
+
+    <h2>2. Cine e cine (SECRET, nu publica)</h2>
+    <table id="priv"></table>
+
+    <h2>3. Fișierul data.js</h2>
+    <p>Descarcă-l și înlocuiește <b>data.js</b> din repo-ul GitHub. Numele nu apar în clar în el.</p>
+    <button id="dl">Descarcă data.js</button>
+  </section>
+</main>
+<script src="script.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let dataJs = '';
+
+function shuffle(a) {
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+// Sattolo: permutare într-un singur ciclu => nimeni nu se trage pe sine, fiecare primește exact o dată
+function cycle(n) {
+  const p = [...Array(n).keys()];
+  for (let i = n - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * i); [p[i], p[j]] = [p[j], p[i]];
+  }
+  return p;
+}
+
+$('go').addEventListener('click', async () => {
+  $('err').textContent = '';
+  const names = $('list').value.split('\n').map(s => s.trim()).filter(Boolean);
+  if (names.length < 3) { $('err').textContent = 'Ai nevoie de minim 3 persoane.'; return; }
+  const keys = names.map(norm);
+  if (new Set(keys).size !== keys.length) { $('err').textContent = 'Ai un nume duplicat (sau același nume cu ordinea inversată).'; return; }
+
+  const people = shuffle(names.map(n => ({ name: n }))).map((p, i) => ({ ...p, id: i + 1 }));
+  const p = cycle(people.length);
+  const entries = [];
+  let pub = '', priv = '<tr><th>ID</th><th>Persoana</th><th>Face cadou lui</th></tr>';
+  for (let i = 0; i < people.length; i++) {
+    const me = people[i], to = people[p[i]];
+    pub += '#' + me.id + ' are pe #' + to.id + ' de dat cadou\n';
+    priv += `<tr><td>#${me.id}</td><td>${esc(me.name)}</td><td>#${to.id} ${esc(to.name)}</td></tr>`;
+    entries.push(await encryptFor(me.name, { id: me.id, rid: to.id, rname: to.name }));
+  }
+  $('pub').textContent = pub.trim();
+  $('priv').innerHTML = priv;
+  dataJs = '// generat automat\nwindow.XMAS_DATA = ' + JSON.stringify(shuffle(entries)) + ';\n';
+  $('out').hidden = false;
+});
+const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+$('dl').addEventListener('click', () => {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([dataJs], { type: 'text/javascript' }));
+  a.download = 'data.js'; a.click();
+});
+</script>
+</body>
+</html>

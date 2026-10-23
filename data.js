@@ -1,0 +1,2 @@
+
+window.XMAS_DATA = [];

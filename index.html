@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Secret Santa</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;600;700&family=Young+Serif&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <h1>Cui îi faci cadou de Crăciun?</h1>
+  <p>Scrie numele și prenumele tău și afli cine îți este persoana norocoasă. Ține secretul!</p>
+
+  <form id="f" autocomplete="off">
+    <label for="n">Nume și prenume</label>
+    <input id="n" placeholder="ex: Gherciu Gabriel" required>
+    <button type="submit">Află cui faci cadou</button>
+    <div class="err" id="err" role="alert"></div>
+  </form>
+
+  <section id="res" hidden>
+    <p class="me" id="me"></p>
+    <div class="tag">
+      <small>Faci cadou lui</small>
+      <div class="id" id="rid"></div>
+      <div class="name" id="rname"></div>
+    </div>
+    <button class="alt" id="hide" type="button">Ascunde rezultatul</button>
+  </section>
+</main>
+<script src="data.js"></script>
+<script src="script.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+$('f').addEventListener('submit', async ev => {
+  ev.preventDefault();
+  $('err').textContent = ''; $('res').hidden = true;
+  const name = $('n').value.trim();
+  try {
+    const h = await lookupHash(name);
+    const e = (window.XMAS_DATA || []).find(x => x.h === h);
+    if (!e) { $('err').textContent = 'Nu te găsesc în listă. Verifică numele și prenumele.'; return; }
+    const d = await decryptFor(name, e);
+    $('me').textContent = 'Tu ești #' + d.id + ' ' + name;
+    $('rid').textContent = '#' + d.rid;
+    $('rname').textContent = d.rname;
+    $('res').hidden = false;
+  } catch (x) {
+    $('err').textContent = 'Nu am putut citi rezultatul. Încearcă din nou.';
+  }
+});
+$('hide').addEventListener('click', () => { $('res').hidden = true; $('n').value = ''; });
+</script>
+</body>
+</html>
