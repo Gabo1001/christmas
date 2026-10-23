@@ -11,10 +11,11 @@
 <body>
 <main>
   <h1>Admin</h1>
-  <p>Scrie câte o persoană pe rând (nume și prenume). Apoi generează tragerea la sorți.</p>
+  <p>Scrie câte o persoană pe rând (nume și prenume). Lista și tragerea se salvează automat în acest browser.</p>
   <label for="list">Participanți</label>
   <textarea id="list" placeholder="Gherciu Gabriel&#10;Munteanu Mihai&#10;..."></textarea>
   <button id="go">Generează</button>
+  <button id="clear" class="alt" type="button">Șterge tot</button>
   <div class="err" id="err" role="alert"></div>
 
   <section id="out" hidden>
@@ -32,7 +33,10 @@
 <script src="script.js"></script>
 <script>
 const $ = id => document.getElementById(id);
-let dataJs = '';
+const KEY = 'xmas_admin_v1';
+const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; } };
+const save = o => localStorage.setItem(KEY, JSON.stringify({ ...load(), ...o }));
 
 function shuffle(a) {
   for (let i = a.length - 1; i > 0; i--) {
@@ -40,7 +44,7 @@ function shuffle(a) {
   }
   return a;
 }
-// Sattolo: permutare într-un singur ciclu => nimeni nu se trage pe sine, fiecare primește exact o dată
+// Sattolo: un singur ciclu => nimeni nu se trage pe sine, fiecare primește exact o dată
 function cycle(n) {
   const p = [...Array(n).keys()];
   for (let i = n - 1; i > 0; i--) {
@@ -49,33 +53,51 @@ function cycle(n) {
   return p;
 }
 
+function render(rows) {
+  $('pub').textContent = rows.map(r => '#' + r.id + ' are pe #' + r.to + ' de dat cadou').join('\n');
+  $('priv').innerHTML = '<tr><th>ID</th><th>Persoana</th><th>Face cadou lui</th></tr>' +
+    rows.map(r => `<tr><td>#${r.id}</td><td>${esc(r.name)}</td><td>#${r.to} ${esc(r.toName)}</td></tr>`).join('');
+  $('out').hidden = false;
+}
+
+// la deschidere: refă lista și tragerea salvate
+(function restore() {
+  const s = load();
+  if (s.list) $('list').value = s.list;
+  if (s.rows && s.dataJs) render(s.rows);
+})();
+$('list').addEventListener('input', () => save({ list: $('list').value }));
+
 $('go').addEventListener('click', async () => {
   $('err').textContent = '';
   const names = $('list').value.split('\n').map(s => s.trim()).filter(Boolean);
   if (names.length < 3) { $('err').textContent = 'Ai nevoie de minim 3 persoane.'; return; }
   const keys = names.map(norm);
   if (new Set(keys).size !== keys.length) { $('err').textContent = 'Ai un nume duplicat (sau același nume cu ordinea inversată).'; return; }
+  if (load().rows && !confirm('Există deja o tragere salvată. Dacă generezi din nou, se schimbă toate rezultatele și trebuie să înlocuiești data.js. Continui?')) return;
 
   const people = shuffle(names.map(n => ({ name: n }))).map((p, i) => ({ ...p, id: i + 1 }));
   const p = cycle(people.length);
-  const entries = [];
-  let pub = '', priv = '<tr><th>ID</th><th>Persoana</th><th>Face cadou lui</th></tr>';
+  const rows = [], entries = [];
   for (let i = 0; i < people.length; i++) {
     const me = people[i], to = people[p[i]];
-    pub += '#' + me.id + ' are pe #' + to.id + ' de dat cadou\n';
-    priv += `<tr><td>#${me.id}</td><td>${esc(me.name)}</td><td>#${to.id} ${esc(to.name)}</td></tr>`;
+    rows.push({ id: me.id, name: me.name, to: to.id, toName: to.name });
     entries.push(await encryptFor(me.name, { id: me.id, rid: to.id, rname: to.name }));
   }
-  $('pub').textContent = pub.trim();
-  $('priv').innerHTML = priv;
-  dataJs = '// generat automat\nwindow.XMAS_DATA = ' + JSON.stringify(shuffle(entries)) + ';\n';
-  $('out').hidden = false;
+  const dataJs = '// generat automat\nwindow.XMAS_DATA = ' + JSON.stringify(shuffle(entries)) + ';\n';
+  save({ list: $('list').value, rows, dataJs });
+  render(rows);
 });
-const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
 $('dl').addEventListener('click', () => {
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([dataJs], { type: 'text/javascript' }));
+  a.href = URL.createObjectURL(new Blob([load().dataJs || ''], { type: 'text/javascript' }));
   a.download = 'data.js'; a.click();
+});
+
+$('clear').addEventListener('click', () => {
+  if (!confirm('Ștergi lista și tragerea salvată?')) return;
+  localStorage.removeItem(KEY); $('list').value = ''; $('out').hidden = true;
 });
 </script>
 </body>
