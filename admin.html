@@ -9,7 +9,16 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<main>
+<main id="login">
+  <h1>Admin</h1>
+  <form id="lf" autocomplete="off">
+    <label for="pw">Parolă</label>
+    <input id="pw" type="password" required>
+    <button type="submit">Intră</button>
+    <div class="err" id="lerr" role="alert"></div>
+  </form>
+</main>
+<main id="app" hidden>
   <h1>Admin</h1>
   <p>Scrie câte o persoană pe rând (nume și prenume). Lista și tragerea se salvează automat în acest browser.</p>
   <label for="list">Participanți</label>
@@ -31,6 +40,17 @@
   </section>
 </main>
 <script src="script.js"></script>
+<script>
+const PASS_HASH = '6cbefeb11696f88540187c7e3784ab4dd5f1cbca3ce7d78038b82256e93fe732';
+async function sha(t){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('xmas-admin|'+t));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');}
+function unlock(){document.getElementById('login').hidden=true;document.getElementById('app').hidden=false;}
+if(sessionStorage.getItem('xmas_ok')==='1')unlock();
+document.getElementById('lf').addEventListener('submit',async e=>{
+  e.preventDefault();
+  if(await sha(document.getElementById('pw').value)===PASS_HASH){sessionStorage.setItem('xmas_ok','1');unlock();}
+  else document.getElementById('lerr').textContent='Parolă greșită.';
+});
+</script>
 <script>
 const $ = id => document.getElementById(id);
 const KEY = 'xmas_admin_v1';
